@@ -1,0 +1,16 @@
+{
+  "root": true,
+  "plugins": [
+    "flowtype"
+  ],
+  "extends": [
+    "standard",
+    "plugin:flowtype/recommended"
+  ],
+  "parserOptions": {
+    "sourceType": "module"
+  },
+  "globals": {
+    "wx": true
+  }
+}

@@ -1,19 +1,19 @@
-import { stringify } from './querystring'
+/* @flow */
 
-function parseUrl(location) {
+import { stringifyQuery } from './util/query'
+
+declare var wx: Object
+
+function parseUrl (location) {
   if (typeof location === 'string') return location
 
   const { path, query } = location
-  const queryStr = stringify(query)
+  const queryStr = stringifyQuery(query)
 
-  if (!queryStr) {
-    return path
-  }
-
-  return `${path}?${queryStr}`
+  return `${path}${queryStr}`
 }
 
-function parseRoute($mp) {
+function parseRoute ($mp) {
   const _$mp = $mp || {}
   const path = _$mp.page && _$mp.page.route
   return {
@@ -29,7 +29,7 @@ function parseRoute($mp) {
   }
 }
 
-function push(location, complete, fail, success) {
+function push (location, complete: ?Function, fail: ?Function, success: ?Function) {
   const url = parseUrl(location)
   const params = { url, complete, fail, success }
 
@@ -44,30 +44,32 @@ function push(location, complete, fail, success) {
   wx.navigateTo(params)
 }
 
-function replace(location, complete, fail, success) {
+function replace (location, complete: ?Function, fail: ?Function, success: ?Function) {
   const url = parseUrl(location)
   wx.redirectTo({ url, complete, fail, success })
 }
 
-function go(delta) {
+function go (delta) {
   wx.navigateBack({ delta })
 }
 
-function back() {
+function back () {
   wx.navigateBack()
 }
 
 export let _Vue
 
 export default {
-  install(Vue) {
+  install (Vue: Object) {
     if (this.installed && _Vue === Vue) return
     this.installed = true
 
     _Vue = Vue
 
-    const _router = {
+    let _route = {}
+    const _router: Router = {
       mode: 'history',
+      currentRoute: _route,
       push,
       replace,
       go,
@@ -75,22 +77,23 @@ export default {
     }
 
     Vue.mixin({
-      onLoad() {
+      onShow () {
+        if (this.$parent) return
         const { $mp } = this.$root
-        this._route = parseRoute($mp)
-      },
-      onShow() {
+        _route = parseRoute($mp)
         _router.app = this
-        _router.currentRoute = this._route
       }
     })
 
-    Object.defineProperty(Vue.prototype, '$router', {
-      get() { return _router }
-    })
+    const $router: Property = {
+      get () { return _router }
+    }
+    const $route: Property = {
+      get () { return _route }
+    }
 
-    Object.defineProperty(Vue.prototype, '$route', {
-      get() { return this._route }
-    })
+    Object.defineProperty(Vue.prototype, '$router', $router)
+
+    Object.defineProperty(Vue.prototype, '$route', $route)
   }
 }

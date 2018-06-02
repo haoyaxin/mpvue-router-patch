@@ -1,11 +1,11 @@
-import babel from 'rollup-plugin-babel';
+import babel from 'rollup-plugin-babel'
 
 export default {
   input: 'src/index.js',
   output: {
     file: 'dist/index.js',
-    format: 'es',
+    format: 'es'
   },
-  external: ['querystring'],
-  plugins: [babel()],
-};
+  external: [],
+  plugins: [babel()]
+}

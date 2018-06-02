@@ -4,7 +4,10 @@
   "description": "在 mpvue 中使用 vue-router 兼容的路由写法",
   "main": "dist/index.js",
   "scripts": {
+    "dev": "rollup -wm -c",
     "build": "rollup -c",
+    "lint": "eslint src",
+    "flow": "flow check",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "files": [
@@ -28,7 +31,16 @@
   "homepage": "https://github.com/F-loat/mpvue-router-patch#readme",
   "devDependencies": {
     "babel-core": "^6.26.3",
-    "babel-preset-env": "^1.6.1",
+    "babel-eslint": "^8.2.3",
+    "babel-preset-flow": "^6.23.0",
+    "eslint": "^4.19.1",
+    "eslint-config-standard": "^11.0.0",
+    "eslint-plugin-flowtype": "^2.49.3",
+    "eslint-plugin-import": "^2.12.0",
+    "eslint-plugin-node": "^6.0.1",
+    "eslint-plugin-promise": "^3.8.0",
+    "eslint-plugin-standard": "^3.1.0",
+    "flow-bin": "^0.73.0",
     "rollup": "^0.58.2",
     "rollup-plugin-babel": "^3.0.4"
   }
