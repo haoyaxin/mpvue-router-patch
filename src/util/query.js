@@ -3,21 +3,6 @@
 
 import { warn } from './warn'
 
-// const encodeReserveRE = /[!'()*]/g
-// const encodeReserveReplacer = c => '%' + c.charCodeAt(0).toString(16)
-// const commaRE = /%2C/g
-
-// fixed encodeURIComponent which is more conformant to RFC3986:
-// - escapes [!'()*]
-// - preserve commas
-// const encode = str => encodeURIComponent(str)
-//   .replace(encodeReserveRE, encodeReserveReplacer)
-//   .replace(commaRE, ',')
-
-const encode = str => str
-
-const decode = decodeURIComponent
-
 export function resolveQuery (
   query: ?string,
   extraQuery: Dictionary<string> = {},
@@ -48,9 +33,9 @@ function parseQuery (query: string): Dictionary<string> {
 
   query.split('&').forEach(param => {
     const parts = param.replace(/\+/g, ' ').split('=')
-    const key = decode(parts.shift())
+    const key = parts.shift()
     const val = parts.length > 0
-      ? decode(parts.join('='))
+      ? parts.join('=')
       : null
 
     if (res[key] === undefined) {
@@ -74,7 +59,7 @@ export function stringifyQuery (obj: Dictionary<string>): string {
     }
 
     if (val === null) {
-      return encode(key)
+      return key
     }
 
     if (Array.isArray(val)) {
@@ -84,15 +69,15 @@ export function stringifyQuery (obj: Dictionary<string>): string {
           return
         }
         if (val2 === null) {
-          result.push(encode(key))
+          result.push(key)
         } else {
-          result.push(encode(key) + '=' + encode(val2))
+          result.push(`${key}=${val2}`)
         }
       })
       return result.join('&')
     }
 
-    return encode(key) + '=' + encode(val)
+    return `${key}=${val}`
   }).filter(x => x.length > 0).join('&') : null
   return res ? `?${res}` : ''
 }
