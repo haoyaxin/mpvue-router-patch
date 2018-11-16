@@ -16,19 +16,19 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/F-loat/mpvue-router-patch.git"
+    "url": "git+https://github.com/haoyaxin/mpvue-router-patch.git"
   },
   "keywords": [
     "mpvue",
     "router",
     "vue-router"
   ],
-  "author": "F-loat <chaimaoyuan@foxmail.com>",
+  "author": "Eyshine <270491953@qq.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/F-loat/mpvue-router-patch/issues"
+    "url": "https://github.com/haoyaxin/mpvue-router-patch/issues"
   },
-  "homepage": "https://github.com/F-loat/mpvue-router-patch#readme",
+  "homepage": "https://github.com/haoyaxin/mpvue-router-patch#readme",
   "devDependencies": {
     "babel-core": "^6.26.3",
     "babel-eslint": "^8.2.3",

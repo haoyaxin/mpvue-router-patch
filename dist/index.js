@@ -1,15 +1,12 @@
-// const encodeReserveRE = /[!'()*]/g
-// const encodeReserveReplacer = c => '%' + c.charCodeAt(0).toString(16)
-// const commaRE = /%2C/g
+function warn(condition, message) {
+  if (process.env.NODE_ENV !== 'production' && !condition) {
+    typeof console !== 'undefined' && console.warn(`[mpvue-router-patch] ${message}`);
+  }
+}
 
-// fixed encodeURIComponent which is more conformant to RFC3986:
-// - escapes [!'()*]
-// - preserve commas
-// const encode = str => encodeURIComponent(str)
-//   .replace(encodeReserveRE, encodeReserveReplacer)
-//   .replace(commaRE, ',')
-
-const encode = str => str;
+function isError(err) {
+  return Object.prototype.toString.call(err).indexOf('Error') > -1;
+}
 
 function stringifyQuery(obj) {
   const res = obj ? Object.keys(obj).map(key => {
@@ -20,7 +17,7 @@ function stringifyQuery(obj) {
     }
 
     if (val === null) {
-      return encode(key);
+      return key;
     }
 
     if (Array.isArray(val)) {
@@ -30,26 +27,17 @@ function stringifyQuery(obj) {
           return;
         }
         if (val2 === null) {
-          result.push(encode(key));
+          result.push(key);
         } else {
-          result.push(encode(key) + '=' + encode(val2));
+          result.push(`${key}=${val2}`);
         }
       });
       return result.join('&');
     }
 
-    return encode(key) + '=' + encode(val);
+    return `${key}=${val}`;
   }).filter(x => x.length > 0).join('&') : null;
   return res ? `?${res}` : '';
-}
-
-function parseUrl(location) {
-  if (typeof location === 'string') return location;
-
-  const { path, query } = location;
-  const queryStr = stringifyQuery(query);
-
-  return `${path}${queryStr}`;
 }
 
 function parseRoute($mp) {
@@ -68,78 +56,162 @@ function parseRoute($mp) {
   };
 }
 
-function push(location, complete, fail, success) {
-  const url = parseUrl(location);
-  const params = { url, complete, fail, success };
+function parseUrl(location) {
+  if (typeof location === 'string') return location;
 
-  if (location.isTab) {
-    wx.switchTab(params);
-    return;
-  }
-  if (location.reLaunch) {
-    wx.reLaunch(params);
-    return;
-  }
-  wx.navigateTo(params);
+  const { path, query } = location;
+  const queryStr = stringifyQuery(query);
+
+  return `${path}${queryStr}`;
 }
 
-function replace(location, complete, fail, success) {
-  const url = parseUrl(location);
-  wx.redirectTo({ url, complete, fail, success });
-}
-
-function go(delta) {
-  wx.navigateBack({ delta });
-}
-
-function back() {
-  wx.navigateBack();
+function location2route(router, location) {
+  let routes = router.options.routes;
+  console.log(location); //  {path: "/pages/manageCate/index", params: {}}
+  let route;
+  routes.map(r => {
+    if (r.path === location.path) {
+      route = r;
+    }
+  });
+  return route;
 }
 
 let _Vue;
 
-var index = {
-  install(Vue) {
-    if (this.installed && _Vue === Vue) return;
-    this.installed = true;
+function install(Vue) {
+  if (this.installed && _Vue === Vue) return;
+  this.installed = true;
 
-    _Vue = Vue;
+  _Vue = Vue;
 
-    let _route = {};
-    const _router = {
-      mode: 'history',
-      currentRoute: _route,
-      push,
-      replace,
-      go,
-      back
-    };
+  const isDef = v => v !== undefined;
+  const registerInstance = (vm, callVal) => {
+    let i = vm.$options._parentVnode;
+    if (isDef(i) && isDef(i = i.data) && isDef(i = i.registerRouteInstance)) {
+      i(vm, callVal);
+    }
+  };
 
-    Vue.mixin({
-      onShow() {
-        if (this.$parent) return;
+  Vue.mixin({
+    onShow() {
+      if (this.$parent) return;
+      // _router.app = this
+      if (isDef(this.$options.router)) {
+        this._routerRoot = this;
+        this._router = this.$options.router;
+        this._router.init(this);
         const { $mp } = this.$root;
-        _route = parseRoute($mp);
-        _router.app = this;
+        this._router.current = parseRoute($mp);
+        Vue.util.defineReactive(this, '_route', this._router.current); // TODO
+      } else {
+        this._routerRoot = this.$parent && this.$parent._routerRoot || this;
+      }
+      registerInstance(this, this);
+    }
+  });
+
+  Object.defineProperty(Vue.prototype, '$router', {
+    get() {
+      return this._routerRoot._router;
+    }
+  });
+
+  Object.defineProperty(Vue.prototype, '$route', {
+    get() {
+      return this._routerRoot._route;
+    }
+  });
+}
+
+class VueRouter {
+
+  constructor(options = {}) {
+    this.app = null;
+    this.apps = [];
+    this.options = options;
+  }
+
+  get currentRoute() {
+    return this.current;
+  }
+
+  init(app /* Vue component instance */) {
+    this.apps.push(app);
+
+    // main app already initialized.
+    if (this.app) {
+      return;
+    }
+
+    this.app = app;
+  }
+
+  beforeEach(fn) {
+    this.beforeGuard = fn;
+  }
+
+  abort(err) {
+    if (isError(err)) {
+      // if (this.errorCbs && this.errorCbs.length) {
+      //   this.errorCbs.forEach(cb => { cb(err) })
+      // } else {
+      warn(false, 'uncaught error during route navigation:');
+      console.error(err);
+      // }
+    }
+  }
+
+  resolveGuard(to, next) {
+    this.beforeGuard(to, this.current, to => {
+      if (to === false || isError(to)) {
+        this.abort(to);
+      } else {
+        // confirm transition and pass on the value
+        next(to);
       }
     });
-
-    const $router = {
-      get() {
-        return _router;
-      }
-    };
-    const $route = {
-      get() {
-        return _route;
-      }
-    };
-
-    Object.defineProperty(Vue.prototype, '$router', $router);
-
-    Object.defineProperty(Vue.prototype, '$route', $route);
   }
-};
 
-export default index;
-export { _Vue };
+  push(location, complete, fail, success) {
+    const url = parseUrl(location);
+    const params = { url, complete, fail, success };
+    let to = location2route(this, location);
+    this.resolveGuard(to, to => {
+      if (location.isTab) {
+        wx.switchTab(params);
+        return;
+      }
+      if (location.reLaunch) {
+        wx.reLaunch(params);
+        return;
+      }
+      wx.navigateTo(params);
+    });
+  }
+
+  replace(location, complete, fail, success) {
+    const url = parseUrl(location);
+    this.resolveGuard(location, location => {
+      wx.redirectTo({ url, complete, fail, success });
+    });
+  }
+
+  go(delta) {
+    this.resolveGuard(delta, location => {
+      wx.navigateBack({ delta });
+    });
+  }
+
+  back() {
+    this.resolveGuard(1, location => {
+      wx.navigateBack();
+    });
+  }
+}
+
+VueRouter.install = install;
+
+// _Vue.use(VueRouter)
+
+export default VueRouter;

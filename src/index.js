@@ -1,99 +1,107 @@
 /* @flow */
 
-import { stringifyQuery } from './util/query'
+import { install } from './install'
+import { parseUrl, location2route } from './util/parse'
+import { warn, isError } from './util/warn'
 
 declare var wx: Object
 
-function parseUrl (location) {
-  if (typeof location === 'string') return location
+export default class VueRouter {
+  static install: () => void;
+  static version: string;
 
-  const { path, query } = location
-  const queryStr = stringifyQuery(query)
+  app: any;
+  apps: Array<any>;
+  options: RouterOptions;
+  fallback: boolean;
+  beforeGuard: NavigationGuard;
+  current: Route;
+  routeStack: Array<Route>
 
-  return `${path}${queryStr}`
-}
-
-function parseRoute ($mp) {
-  const _$mp = $mp || {}
-  const path = _$mp.page && _$mp.page.route
-  return {
-    path: `/${path}`,
-    params: {},
-    query: _$mp.query,
-    hash: '',
-    fullPath: parseUrl({
-      path: `/${path}`,
-      query: _$mp.query
-    }),
-    name: path && path.replace(/\/(\w)/g, ($0, $1) => $1.toUpperCase())
+  constructor (options: RouterOptions = {}) {
+    this.app = null
+    this.apps = []
+    this.options = options
   }
-}
 
-function push (location, complete: ?Function, fail: ?Function, success: ?Function) {
-  const url = parseUrl(location)
-  const params = { url, complete, fail, success }
-
-  if (location.isTab) {
-    wx.switchTab(params)
-    return
+  get currentRoute (): ?Route {
+    return this.current
   }
-  if (location.reLaunch) {
-    wx.reLaunch(params)
-    return
-  }
-  wx.navigateTo(params)
-}
 
-function replace (location, complete: ?Function, fail: ?Function, success: ?Function) {
-  const url = parseUrl(location)
-  wx.redirectTo({ url, complete, fail, success })
-}
+  init (app: any /* Vue component instance */) {
+    this.apps.push(app)
 
-function go (delta) {
-  wx.navigateBack({ delta })
-}
-
-function back () {
-  wx.navigateBack()
-}
-
-export let _Vue
-
-export default {
-  install (Vue: Object) {
-    if (this.installed && _Vue === Vue) return
-    this.installed = true
-
-    _Vue = Vue
-
-    let _route = {}
-    const _router: Router = {
-      mode: 'history',
-      currentRoute: _route,
-      push,
-      replace,
-      go,
-      back
+    // main app already initialized.
+    if (this.app) {
+      return
     }
 
-    Vue.mixin({
-      onShow () {
-        if (this.$parent) return
-        const { $mp } = this.$root
-        _route = parseRoute($mp)
-        _router.app = this
+    this.app = app
+  }
+
+  beforeEach (fn: NavigationGuard) {
+    this.beforeGuard = fn
+  }
+
+  abort (err: any) {
+    if (isError(err)) {
+      // if (this.errorCbs && this.errorCbs.length) {
+      //   this.errorCbs.forEach(cb => { cb(err) })
+      // } else {
+      warn(false, 'uncaught error during route navigation:')
+      console.error(err)
+      // }
+    }
+  }
+
+  resolveGuard (to: any, next: Function) {
+    this.beforeGuard(to, this.current, (to: any) => {
+      if (to === false || isError(to)) {
+        this.abort(to)
+      } else {
+        // confirm transition and pass on the value
+        next(to)
       }
     })
+  }
 
-    const $router: Property = {
-      get () { return _router }
-    }
-    const $route: Property = {
-      get () { return _route }
-    }
+  push (location: Location, complete: ?Function, fail: ?Function, success: ?Function) {
+    const url = parseUrl(location)
+    const params = { url, complete, fail, success }
+    let to = location2route(this, location)
+    this.resolveGuard(to, (to) => {
+      if (location.isTab) {
+        wx.switchTab(params)
+        return
+      }
+      if (location.reLaunch) {
+        wx.reLaunch(params)
+        return
+      }
+      wx.navigateTo(params)
+    })
+  }
 
-    Object.defineProperty(Vue.prototype, '$router', $router)
+  replace (location: Location, complete: ?Function, fail: ?Function, success: ?Function) {
+    const url = parseUrl(location)
+    this.resolveGuard(location, (location) => {
+      wx.redirectTo({ url, complete, fail, success })
+    })
+  }
 
-    Object.defineProperty(Vue.prototype, '$route', $route)
+  go (delta: number) {
+    this.resolveGuard(delta, (location) => {
+      wx.navigateBack({ delta })
+    })
+  }
+
+  back () {
+    this.resolveGuard(1, (location) => {
+      wx.navigateBack()
+    })
   }
 }
+
+VueRouter.install = install
+
+// _Vue.use(VueRouter)
