@@ -108,7 +108,7 @@ export default class VueRouter {
   }
 
   back () {
-    this.go(-1)
+    this.go(1)
   }
 }
 

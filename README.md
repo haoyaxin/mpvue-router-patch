@@ -1,23 +1,77 @@
-# mpvue-router-patch
-> 在 mpvue 中使用 vue-router 兼容的路由写法
-
-[![npm package](https://img.shields.io/npm/v/mpvue-router-patch.svg)](https://npmjs.org/package/mpvue-router-patch)
-[![npm downloads](http://img.shields.io/npm/dm/mpvue-router-patch.svg)](https://npmjs.org/package/mpvue-router-patch)
+# mpvue-router
+> 在 mpvue 中使用 vue-router 兼容的路由写法，从mpvue-router-patch项目fork过来，增加了简单的路由守卫和路由栈管理
 
 ## 安装
 
-``` bash
-npm i mpvue-router-patch
-```
+没有丢进npm，所以可以自行下载dist里的文件丢进小程序项目中使用
 
 ## 使用
 
+设置项目所需路由
+``` js
+// routes,js
+const routes = [
+  {
+    path: '/pages/login/index',
+    config: {
+      navigationBarTitleText: '登录',
+      usingComponents: {}
+    }
+  },
+  {
+    path: '/pages/index/index',
+    meta: {requireAuth: true},
+    config: {
+      navigationBarTitleText: '首页',
+      usingComponents: {}
+    }
+  }
+]
+
+// router.js
+import Router from './xrouter'
+import routes from './routes'
+
+const router = new Router({routes})
+```
+
+路由守卫示例：
+``` js
+// router.js
+router.beforeEach((to, from, next) => {
+  // meta.requireAuth为true时才进行校验
+  if (to.meta.requireAuth) {
+    // 此处使用vuex进行校验，具体根据业务需求来
+    store.dispatch('checkAuth')
+    console.log('router.beforeEach 启动')
+    if (!store.state.checkAuth) {
+      // 未登录则定向至登录页
+      next({ path: '/login'})
+    } else {
+      next()
+    }
+  } else {
+    next()
+  }
+})
+
+```
+
+将router注入vue
 ``` js
 // main.js
-import Vue from 'vue'
-import MpvueRouterPatch from 'mpvue-router-patch'
+import xRouter from '@/router/xrouter'
+import router from '@/router/routes'
 
-Vue.use(MpvueRouterPatch)
+Vue.use(xRouter)
+
+const app = new Vue({
+  router,
+  store,
+  ...App
+})
+
+app.$mount()
 ```
 
 ## API
@@ -47,8 +101,6 @@ Vue.use(MpvueRouterPatch)
 跳转到应用内的某个页面，`wx.navigateTo`、`wx.switchTab` 及 `wx.reLaunch` 均通过该方法实现，`location` 参数支持字符串及对象两种形式，跳转至 `tabBar` 页面或重启至某页面时必须以对象形式传入
 
 ``` js
-// 字符串
-router.push('/pages/news/detail')
 
 // 对象
 router.push({ path: '/pages/news/detail' })
