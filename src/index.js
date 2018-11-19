@@ -22,6 +22,7 @@ export default class VueRouter {
     this.app = null
     this.apps = []
     this.options = options
+    this.routeStack = []
   }
 
   get currentRoute (): ?Route {
@@ -30,12 +31,10 @@ export default class VueRouter {
 
   init (app: any /* Vue component instance */) {
     this.apps.push(app)
-
     // main app already initialized.
     if (this.app) {
       return
     }
-
     this.app = app
   }
 
@@ -45,12 +44,8 @@ export default class VueRouter {
 
   abort (err: any) {
     if (isError(err)) {
-      // if (this.errorCbs && this.errorCbs.length) {
-      //   this.errorCbs.forEach(cb => { cb(err) })
-      // } else {
       warn(false, 'uncaught error during route navigation:')
       console.error(err)
-      // }
     }
   }
 
@@ -65,6 +60,12 @@ export default class VueRouter {
     })
   }
 
+  /**
+   * handle route：
+   * 1. wx route
+   * 2. change route stack
+   * 3. change current route
+   * */
   push (location: Location, complete: ?Function, fail: ?Function, success: ?Function) {
     const url = parseUrl(location)
     const params = { url, complete, fail, success }
@@ -72,36 +73,43 @@ export default class VueRouter {
     this.resolveGuard(to, (to) => {
       if (location.isTab) {
         wx.switchTab(params)
+        this.current = to
+        this.routeStack.splice(this.routeStack.length - 1, 1, to)
         return
       }
       if (location.reLaunch) {
         wx.reLaunch(params)
+        // current & routestack dont need change
         return
       }
       wx.navigateTo(params)
+      this.current = to
+      this.routeStack.push(to)
     })
   }
 
   replace (location: Location, complete: ?Function, fail: ?Function, success: ?Function) {
     const url = parseUrl(location)
-    this.resolveGuard(location, (location) => {
+    let to = location2route(this, location)
+    this.resolveGuard(to, (to) => {
       wx.redirectTo({ url, complete, fail, success })
+      this.current = to
+      this.routeStack = [to]
     })
   }
 
   go (delta: number) {
-    this.resolveGuard(delta, (location) => {
+    let to = this.routeStack[this.routeStack - 1 - delta]
+    this.resolveGuard(to, (to) => {
       wx.navigateBack({ delta })
+      this.routeStack.slice(0, this.routeStack - 1 - delta)
+      this.current = this.routeStack[this.routeStack - 1]
     })
   }
 
   back () {
-    this.resolveGuard(1, (location) => {
-      wx.navigateBack()
-    })
+    this.go(-1)
   }
 }
 
 VueRouter.install = install
-
-// _Vue.use(VueRouter)
