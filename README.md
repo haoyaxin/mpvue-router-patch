@@ -38,20 +38,19 @@ const router = new Router({routes})
 路由守卫示例：
 ``` js
 // router.js
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   // meta.requireAuth为true时才进行校验
-  if (to.meta.requireAuth) {
+  if (to.meta && to.meta.requireAuth) {
     // 此处使用vuex进行校验，具体根据业务需求来
-    store.dispatch('checkAuth')
-    console.log('router.beforeEach 启动')
-    if (!store.state.checkAuth) {
-      // 未登录则定向至登录页
-      next({ path: '/login'})
-    } else {
-      next()
+    try {
+      await store.dispatch('user/checkAuth')
+      next(to)
+    } catch (e) {
+      // replace表示要重定向到心得页面
+      next({path: '/pages/login/index', replace: true})
     }
   } else {
-    next()
+    next(to)
   }
 })
 

@@ -49,8 +49,8 @@ export default class VueRouter {
     }
   }
 
-  resolveGuard (to: any, next: Function) {
-    this.beforeGuard(to, this.current, (to: any) => {
+  async resolveGuard (to: any, next: Function) {
+    await this.beforeGuard(to, this.current, (to: any) => {
       if (to === false || isError(to)) {
         this.abort(to)
       } else {
@@ -60,55 +60,71 @@ export default class VueRouter {
     })
   }
 
+  async redirectTo (location: Location, complete: ?Function, fail: ?Function, success: ?Function) {
+    const url = parseUrl(location)
+    let to = location2route(this, location)
+    wx.redirectTo({ url, complete, fail, success })
+    this.current = to
+    this.routeStack = [to]
+  }
+
   /**
    * handle route：
    * 1. wx route
    * 2. change route stack
    * 3. change current route
    * */
-  push (location: Location, complete: ?Function, fail: ?Function, success: ?Function) {
+  async push (location: Location, complete: ?Function, fail: ?Function, success: ?Function) {
     const url = parseUrl(location)
     const params = { url, complete, fail, success }
     let to = location2route(this, location)
-    this.resolveGuard(to, (to) => {
-      if (location.isTab) {
-        wx.switchTab(params)
+    await this.resolveGuard(to, (to) => {
+      if (to.replace) {
+        this.redirectTo(to)
+      } else {
+        if (location.isTab) {
+          wx.switchTab(params)
+          this.current = to
+          this.routeStack.splice(this.routeStack.length - 1, 1, to)
+          return
+        }
+        if (location.reLaunch) {
+          wx.reLaunch(params)
+          // current & routestack dont need change
+          return
+        }
+        wx.navigateTo(params)
         this.current = to
-        this.routeStack.splice(this.routeStack.length - 1, 1, to)
-        return
+        this.routeStack.push(to)
       }
-      if (location.reLaunch) {
-        wx.reLaunch(params)
-        // current & routestack dont need change
-        return
-      }
-      wx.navigateTo(params)
-      this.current = to
-      this.routeStack.push(to)
     })
   }
 
-  replace (location: Location, complete: ?Function, fail: ?Function, success: ?Function) {
+  async replace (location: Location, complete: ?Function, fail: ?Function, success: ?Function) {
     const url = parseUrl(location)
     let to = location2route(this, location)
-    this.resolveGuard(to, (to) => {
+    await this.resolveGuard(to, (to) => {
       wx.redirectTo({ url, complete, fail, success })
       this.current = to
       this.routeStack = [to]
     })
   }
 
-  go (delta: number) {
-    let to = this.routeStack[this.routeStack - 1 - delta]
-    this.resolveGuard(to, (to) => {
-      wx.navigateBack({ delta })
-      this.routeStack.slice(0, this.routeStack - 1 - delta)
-      this.current = this.routeStack[this.routeStack - 1]
+  async go (delta: number) {
+    let to = this.routeStack[this.routeStack.length - 1 - delta]
+    await this.resolveGuard(to, (to) => {
+      if (to.replace) {
+        this.redirectTo(to)
+      } else {
+        wx.navigateBack({ delta })
+        this.routeStack.slice(0, this.routeStack.length - 1 - delta)
+        this.current = this.routeStack[this.routeStack.length - 1]
+      }
     })
   }
 
-  back () {
-    this.go(1)
+  async back () {
+    await this.go(1)
   }
 }
 
