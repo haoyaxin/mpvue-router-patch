@@ -62,7 +62,7 @@ export default class VueRouter {
 
   async redirectTo (location: Location, complete: ?Function, fail: ?Function, success: ?Function) {
     const url = parseUrl(location)
-    let to = location2route(this, location)
+    let to = location2route(this.options.routes, location)
     wx.redirectTo({ url, complete, fail, success })
     this.current = to
     this.routeStack = [to]
@@ -77,7 +77,7 @@ export default class VueRouter {
   async push (location: Location, complete: ?Function, fail: ?Function, success: ?Function) {
     const url = parseUrl(location)
     const params = { url, complete, fail, success }
-    let to = location2route(this, location)
+    let to = location2route(this.options.routes, location)
     await this.resolveGuard(to, (to) => {
       if (to.replace) {
         this.redirectTo(to)
@@ -102,7 +102,7 @@ export default class VueRouter {
 
   async replace (location: Location, complete: ?Function, fail: ?Function, success: ?Function) {
     const url = parseUrl(location)
-    let to = location2route(this, location)
+    let to = location2route(this.options.routes, location)
     await this.resolveGuard(to, (to) => {
       wx.redirectTo({ url, complete, fail, success })
       this.current = to
@@ -111,13 +111,13 @@ export default class VueRouter {
   }
 
   async go (delta: number) {
-    let to = this.routeStack[this.routeStack.length - 1 - delta]
+    let to = this.routeStack[this.routeStack.length + 1 - delta]
     await this.resolveGuard(to, (to) => {
       if (to.replace) {
         this.redirectTo(to)
       } else {
         wx.navigateBack({ delta })
-        this.routeStack.slice(0, this.routeStack.length - 1 - delta)
+        this.routeStack.slice(0, this.routeStack.length + 1 - delta)
         this.current = this.routeStack[this.routeStack.length - 1]
       }
     })

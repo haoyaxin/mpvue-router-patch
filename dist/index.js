@@ -42,15 +42,16 @@ function stringifyQuery(obj) {
 
 function parseRoute($mp) {
   const _$mp = $mp || {};
-  const path = _$mp.page && _$mp.page.route;
+  const path = _$mp.appOptions && _$mp.appOptions.path;
+  const query = _$mp.appOptions && _$mp.appOptions.query;
   return {
     path: `/${path}`,
     params: {},
-    query: _$mp.query,
+    query: query,
     hash: '',
     fullPath: parseUrl({
       path: `/${path}`,
-      query: _$mp.query
+      query: query
     }),
     name: path && path.replace(/\/(\w)/g, ($0, $1) => $1.toUpperCase())
   };
@@ -65,8 +66,7 @@ function parseUrl(location) {
   return `${path}${queryStr}`;
 }
 
-function location2route(router, location) {
-  let routes = router.options.routes;
+function location2route(routes, location) {
   console.log(location); //  {path: "/pages/manageCate/index", params: {}}
   let route;
   routes.map(r => {
@@ -102,24 +102,27 @@ function install(Vue) {
         this._router = this.$options.router;
         this._router.init(this);
         const { $mp } = this.$root;
-        this._router.current = parseRoute($mp);
+        this._router.current = location2route(this._router, parseRoute($mp).fullPath);
         Vue.util.defineReactive(this, '_route', this._router.current); // TODO
       } else {
         this._routerRoot = this.$parent && this.$parent._routerRoot || this;
       }
       registerInstance(this, this);
+      if (this._router.routeStack.length < 1) {
+        this._router.routeStack.push(this._router.current);
+      }
     }
   });
 
   Object.defineProperty(Vue.prototype, '$router', {
     get() {
-      return this._routerRoot._router;
+      return this.$root._routerRoot._router;
     }
   });
 
   Object.defineProperty(Vue.prototype, '$route', {
     get() {
-      return this._routerRoot._route;
+      return this.$root._routerRoot._route;
     }
   });
 }
@@ -170,7 +173,7 @@ class VueRouter {
 
   async redirectTo(location, complete, fail, success) {
     const url = parseUrl(location);
-    let to = location2route(this, location);
+    let to = location2route(this.options.routes, location);
     wx.redirectTo({ url, complete, fail, success });
     this.current = to;
     this.routeStack = [to];
@@ -185,7 +188,7 @@ class VueRouter {
   async push(location, complete, fail, success) {
     const url = parseUrl(location);
     const params = { url, complete, fail, success };
-    let to = location2route(this, location);
+    let to = location2route(this.options.routes, location);
     await this.resolveGuard(to, to => {
       if (to.replace) {
         this.redirectTo(to);
@@ -210,7 +213,7 @@ class VueRouter {
 
   async replace(location, complete, fail, success) {
     const url = parseUrl(location);
-    let to = location2route(this, location);
+    let to = location2route(this.options.routes, location);
     await this.resolveGuard(to, to => {
       wx.redirectTo({ url, complete, fail, success });
       this.current = to;

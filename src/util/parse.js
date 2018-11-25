@@ -3,15 +3,16 @@ import { stringifyQuery } from './query'
 
 function parseRoute ($mp: any) {
   const _$mp = $mp || {}
-  const path = _$mp.page && _$mp.page.route
+  const path = _$mp.appOptions && _$mp.appOptions.path
+  const query = _$mp.appOptions && _$mp.appOptions.query
   return {
     path: `/${path}`,
     params: {},
-    query: _$mp.query,
+    query: query,
     hash: '',
     fullPath: parseUrl({
       path: `/${path}`,
-      query: _$mp.query
+      query: query
     }),
     name: path && path.replace(/\/(\w)/g, ($0, $1) => $1.toUpperCase())
   }
@@ -26,8 +27,7 @@ function parseUrl (location: Location) {
   return `${path}${queryStr}`
 }
 
-function location2route (router, location: Location) {
-  let routes = router.options.routes
+function location2route (routes, location: Location) {
   console.log(location) //  {path: "/pages/manageCate/index", params: {}}
   let route
   routes.map((r) => {
