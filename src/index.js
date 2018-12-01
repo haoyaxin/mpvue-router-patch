@@ -111,13 +111,13 @@ export default class VueRouter {
   }
 
   async go (delta: number) {
-    let to = this.routeStack[this.routeStack.length + 1 - delta]
+    let to = this.routeStack[this.routeStack.length - 1 - delta]
     await this.resolveGuard(to, (to) => {
       if (to.replace) {
         this.redirectTo(to)
       } else {
         wx.navigateBack({ delta })
-        this.routeStack.slice(0, this.routeStack.length + 1 - delta)
+        this.routeStack.slice(0, this.routeStack.length - delta)
         this.current = this.routeStack[this.routeStack.length - 1]
       }
     })

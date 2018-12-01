@@ -102,7 +102,7 @@ function install(Vue) {
         this._router = this.$options.router;
         this._router.init(this);
         const { $mp } = this.$root;
-        this._router.current = location2route(this._router, parseRoute($mp).fullPath);
+        this._router.current = location2route(this._router.options.routes, parseRoute($mp));
         Vue.util.defineReactive(this, '_route', this._router.current); // TODO
       } else {
         this._routerRoot = this.$parent && this.$parent._routerRoot || this;
@@ -228,7 +228,7 @@ class VueRouter {
         this.redirectTo(to);
       } else {
         wx.navigateBack({ delta });
-        this.routeStack.slice(0, this.routeStack.length - 1 - delta);
+        this.routeStack.slice(0, this.routeStack.length - delta);
         this.current = this.routeStack[this.routeStack.length - 1];
       }
     });
